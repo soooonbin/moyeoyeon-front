@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import * as path from 'path';
 
 export default defineConfig({
     plugins: [react()],
@@ -7,7 +8,7 @@ export default defineConfig({
         proxy: {
             // 기존 package.json의 proxy 설정 반영
             '/api': {
-                target: 'http://localhost:8080',
+                target: process.env.VITE_API_BASE_URL,
                 changeOrigin: true,
                 secure: false,
             },
@@ -16,4 +17,9 @@ export default defineConfig({
     build: {
         outDir: '../build',  // React 빌드 결과를 Spring Boot로 전달
     },
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './src')
+        }
+    }
 });

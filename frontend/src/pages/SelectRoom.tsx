@@ -1,71 +1,44 @@
-import React from 'react';
-import { Box, Typography, Card, CardContent } from '@mui/material';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const SelectRoom: React.FC = () => {
+    const navigate = useNavigate();
+
     return (
-        <Box
-            sx={{
-                height: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                pt: 6, // 상단 여백
-            }}
-        >
-            {/* 제목 */}
-            <Typography variant="h3" component="h1" gutterBottom>
-                Select Your Vibe
-            </Typography>
-
-            {/* 카드 컨테이너 */}
-            <Box
-                sx={{
-                    mt: 6, // 카드 컨테이너 상단 여백
-                    display: 'flex',
-                    gap: 20, // 카드 사이 간격
-                }}
-            >
-                {/* 첫 번째 카드 */}
-                <Card
-                    sx={{
-                        width: 300,
-                        height: 400,
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                >
-                    <CardContent>
-                        {/* 카드 내부 내용 */}
-                        <Typography variant="h6" component="div">
-                            Card 1
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            카드 1
-                        </Typography>
+        <div className="h-screen flex flex-col items-center pt-6 bg-pink-100 ">
+            <h1 className="text-4xl font-bold mt-10 mb-8 text-red-600">Choose your way</h1>
+            <div className="mt-10 flex gap-[140px] justify-center">
+                {/* Card 1: Single Room */}
+                <Card className="w-[380px] h-[460px] relative">
+                    <CardContent className="p-4">
+                        <h3 className="text-lg font-semibold">Single Room</h3>
+                        <p className="text-sm text-gray-500">혼자 이용하기</p>
                     </CardContent>
+                    <Button
+                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 py-3 px-6 text-lg bg-white text-primary border-2 border-primary rounded-full shadow-none hover:bg-gray-200 hover:shadow-none"
+                        onClick={() => navigate("/create-room?type=single")}
+                    >
+                        Start
+                    </Button>
                 </Card>
 
-                {/* 두 번째 카드 */}
-                <Card
-                    sx={{
-                        width: 300,
-                        height: 400,
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                >
-                    <CardContent>
-                        {/* 카드 내부 내용 */}
-                        <Typography variant="h6" component="div">
-                            Card 2
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            카드 2
-                        </Typography>
+                {/* Card 2: Group Room */}
+                <Card className="w-[380px] h-[460px] relative">
+                    <CardContent className="p-4">
+                        <h3 className="text-lg font-semibold">Group Room</h3>
+                        <p className="text-sm text-gray-500">여러 명 이용하기</p>
                     </CardContent>
+                    <Button
+                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 py-3 px-6 text-lg bg-white text-primary border-2 border-primary rounded-full shadow-none hover:bg-gray-200 hover:shadow-none"
+                        onClick={() => navigate("/create-room?type=group")}
+                    >
+                        Start
+                    </Button>
                 </Card>
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 };
 
