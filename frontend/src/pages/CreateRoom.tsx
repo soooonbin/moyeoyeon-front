@@ -1,26 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-/* ───────── 백엔드 응답 타입(유연하게) ───────── */
-interface ServerUserInfo {
-    userId: number;
-    userName: string;
-    userImg?: number | string;
-    userColor?: string;
-    isOwner?: boolean;
-}
-type TeamChatRoomResponse =
-    | {
-    roomId: number;
-    roomName: string;
-    roomQnum: number;
-    userInfo?: ServerUserInfo[] | ServerUserInfo | null;
-    userId?: number;
-}
-    | any;
-
-/* ✅ 항상 절대주소 사용: env 없으면 8080 기본 */
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+import { apiClient } from "@/api";
+import { ServerUserInfo, CreateRoomResponse } from "@/types";
 
 /* 소문자/트림 정규화 */
 const norm = (s?: string) => (s ?? "").trim().toLowerCase();
@@ -43,21 +24,20 @@ const CreateRoom: React.FC = () => {
     const isValidPassword = (arr: string[]) => arr.every((w) => w.length >= 1 && w.length <= 10);
     const isValidUserName = (v: string) => v.trim().length >= 1 && v.trim().length <= 10;
 
-    /** 전체 폼 유효 여부 → 버튼 활성화용 */
     const isFormValid = useMemo(
         () => isValidRoomName(roomName) && isValidPassword(passkeyParts) && isValidUserName(userName),
         [roomName, passkeyParts, userName]
     );
 
     /* ───────── 입력 핸들러 ───────── */
-    const handleRoomNameChange = (v: string) => setRoomName(v.slice(0, 50)); // 50자 제한
+    const handleRoomNameChange = (v: string) => setRoomName(v.slice(0, 50));
     const handlePasskeyChange = (idx: number, value: string) => {
-        const cleaned = value.replace(/\s/g, ""); // 공백 제거
+        const cleaned = value.replace(/\s/g, "");
         const next = [...passkeyParts];
-        next[idx] = cleaned.slice(0, 10); // 10자 제한
+        next[idx] = cleaned.slice(0, 10);
         setPasskeyParts(next);
     };
-    const handleUserNameChange = (v: string) => setUserName(v.replace(/\s/g, "").slice(0, 10)); // 공백 제거 + 10자 제한
+    const handleUserNameChange = (v: string) => setUserName(v.replace(/\s/g, "").slice(0, 10));
 
     /* ───────── 방 생성 ───────── */
     const handleCreateRoom = async () => {
@@ -71,8 +51,8 @@ const CreateRoom: React.FC = () => {
 
         const userInfo = {
             userName: userName.trim(),
-            userImg: Math.floor(Math.random() * 6) + 1, // 1~6
-            userColor: Math.floor(Math.random() * 5) + 1, // 1~5
+            userImg: Math.floor(Math.random() * 6) + 1,
+            userColor: Math.floor(Math.random() * 5) + 1,
         };
 
         const requestBody = {
@@ -84,56 +64,34 @@ const CreateRoom: React.FC = () => {
         };
 
         try {
-            const res = await fetch(`${API_BASE}/api/room`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(requestBody),
-            });
+            const { data } = await apiClient.post<CreateRoomResponse>('/api/room', requestBody);
 
-            // 상태 코드 우선 체크
-            if (!res.ok) {
-                const text = await res.text().catch(() => "");
-                throw new Error(`Failed to create room (${res.status}) ${text}`);
-            }
-
-            // ✅ Content-Type 검사(HTML이면 이유 미리보기)
-            const ct = res.headers.get("content-type") || "";
-            if (!ct.includes("application/json")) {
-                const hint = await res.text().catch(() => "");
-                alert(
-                    `방 생성 API 응답이 JSON이 아닙니다(${ct}).\n응답 미리보기:\n${hint.slice(0, 200)}`
-                );
-                return;
-            }
-
-            const data: TeamChatRoomResponse = await res.json();
-
-            // ✅ 응답에서 내 userId 안전하게 추출
+            // 응답에서 내 userId 추출
             let myUserId: number | undefined = undefined;
 
-            const ui = (data as any)?.userInfo;
+            const ui = data?.userInfo;
             if (Array.isArray(ui)) {
-                const me = (ui as ServerUserInfo[]).find((u) => norm(u.userName) === norm(userName));
+                const me = ui.find((u) => norm(u.userName) === norm(userName));
                 myUserId = me?.userId;
             } else if (ui && typeof ui === "object" && "userId" in ui) {
-                myUserId = Number((ui as any).userId) || undefined;
-            } else if (typeof (data as any)?.userId === "number") {
-                myUserId = (data as any).userId;
+                myUserId = Number((ui as ServerUserInfo).userId) || undefined;
+            } else if (typeof data?.userId === "number") {
+                myUserId = data.userId;
             }
             console.log("사용자아이디는?  ", myUserId);
 
-            // 방별로 로컬 저장(새로고침/직접접속 대비)
+            // 방별로 로컬 저장
             try {
-                localStorage.setItem(`moyeo:room:${(data as any)?.roomId}:userId`, myUserId != null ? String(myUserId) : "");
-                localStorage.setItem(`moyeo:room:${(data as any)?.roomId}:userName`, userName.trim());
+                localStorage.setItem(`moyeo:room:${data?.roomId}:userId`, myUserId != null ? String(myUserId) : "");
+                localStorage.setItem(`moyeo:room:${data?.roomId}:userName`, userName.trim());
             } catch {}
 
-            navigate(`/chat-room/${(data as any)?.roomId}`, {
+            navigate(`/chat-room/${data?.roomId}`, {
                 state: {
-                    roomName: (data as any)?.roomName,
-                    roomQnum: (data as any)?.roomQnum,
+                    roomName: data?.roomName,
+                    roomQnum: data?.roomQnum,
                     userName,
-                    userId: myUserId, // 없을 수도 있으니 ChatRoom에서 보강
+                    userId: myUserId,
                 },
             });
         } catch (err) {
@@ -143,9 +101,7 @@ const CreateRoom: React.FC = () => {
     };
 
     return (
-        // 데스크톱에서 중앙 정렬된 모바일 캔버스로 보이도록 래핑
         <main className="min-h-[100svh] bg-[#f3f4f6] flex items-center justify-center">
-            {/* 모바일 캔버스: 기본 375, 주요 기종 폭 대응 */}
             <section
                 className={[
                     "relative w-full",
@@ -155,16 +111,13 @@ const CreateRoom: React.FC = () => {
                     "overflow-hidden",
                 ].join(" ")}
             >
-                {/* 상단 여백 */}
                 <div className="pt-6 px-5">
-                    {/* 상단 로고 텍스트 (시안의 MOYEOYEON) */}
                     <div className="w-full flex justify-center">
                         <h1 className="text-[18px] font-extrabold tracking-wider text-rose-700">
                             {headerText}
                         </h1>
                     </div>
 
-                    {/* (이미지 슬롯) 상단 일러스트 자리 */}
                     <div
                         aria-hidden
                         className="mt-4 mx-auto w-[260px] h-[160px] rounded-2xl bg-white/40 border border-white/60 shadow-sm flex items-center justify-center text-rose-600 text-sm"
@@ -172,7 +125,6 @@ const CreateRoom: React.FC = () => {
                         IMAGE
                     </div>
 
-                    {/* 타이틀 & 서브타이틀 */}
                     <div className="mt-5 text-center">
                         <p className="text-[18px] font-extrabold text-rose-700">
                             방을 만들어 친구들을 초대해보세요!
@@ -182,7 +134,6 @@ const CreateRoom: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* 폼 영역 */}
                     <form
                         className="mt-6"
                         onSubmit={(e) => {
@@ -190,11 +141,10 @@ const CreateRoom: React.FC = () => {
                             handleCreateRoom();
                         }}
                     >
-                        {/* 입력자 이름 */}
                         <label className="block">
-              <span className="block text-[12px] font-semibold text-rose-700">
-                내 이름을 입력해주세요.
-              </span>
+                            <span className="block text-[12px] font-semibold text-rose-700">
+                                내 이름을 입력해주세요.
+                            </span>
                             <div className="mt-2 rounded-full bg-white/70 border border-rose-300 overflow-hidden">
                                 <input
                                     type="text"
@@ -206,15 +156,14 @@ const CreateRoom: React.FC = () => {
                                 />
                             </div>
                             <span className="mt-1 block text-[11px] text-rose-700/80">
-                {userName.trim().length}/10
-              </span>
+                                {userName.trim().length}/10
+                            </span>
                         </label>
 
-                        {/* 방 이름 */}
                         <label className="block mt-5">
-              <span className="block text-[12px] font-semibold text-rose-700">
-                방 이름을 지어주세요.
-              </span>
+                            <span className="block text-[12px] font-semibold text-rose-700">
+                                방 이름을 지어주세요.
+                            </span>
                             <div className="mt-2 rounded-full bg-white/70 border border-rose-300 overflow-hidden">
                                 <input
                                     type="text"
@@ -226,11 +175,10 @@ const CreateRoom: React.FC = () => {
                                 />
                             </div>
                             <span className="mt-1 block text-[11px] text-rose-700/80">
-                {roomName.trim().length}/50
-              </span>
+                                {roomName.trim().length}/50
+                            </span>
                         </label>
 
-                        {/* 질문 개수 선택 (라디오) */}
                         <fieldset className="mt-6">
                             <legend className="block text-[12px] font-semibold text-rose-700">
                                 응답할 질문의 개수를 선택하세요.
@@ -255,12 +203,10 @@ const CreateRoom: React.FC = () => {
                             </div>
                         </fieldset>
 
-                        {/* 패스키 3단어 */}
                         <label className="block mt-6">
-              <span className="block text-[12px] font-semibold text-rose-700">
-                룸 패스키로 사용할 단어 3개를 입력하세요.
-              </span>
-
+                            <span className="block text-[12px] font-semibold text-rose-700">
+                                룸 패스키로 사용할 단어 3개를 입력하세요.
+                            </span>
                             <div className="mt-3 grid grid-cols-3 gap-2">
                                 {passkeyParts.map((val, i) => (
                                     <div
@@ -278,13 +224,11 @@ const CreateRoom: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-
                             <div className="mt-2 pl-1 text-[11px] text-rose-700/80">
                                 ┗ 친구 초대 시 필요한 입장 비밀번호예요. (띄어쓰기 불가 / 각 1~10자)
                             </div>
                         </label>
 
-                        {/* 하단 버튼 */}
                         <div className="mt-8 pb-[calc(20px+env(safe-area-inset-bottom,0px))]">
                             <button
                                 type="submit"
@@ -305,7 +249,6 @@ const CreateRoom: React.FC = () => {
                     </form>
                 </div>
 
-                {/* (선택) 하단 카피라이트 */}
                 <div className="pb-4 text-center text-[10px] text-rose-700/90">
                     © 2025 MOYEOYEON ALL RIGHTS RESERVED
                 </div>
