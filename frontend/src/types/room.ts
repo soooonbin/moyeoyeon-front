@@ -10,7 +10,7 @@ export interface CreateRoomResponse {
 }
 
 // 방 상세 정보 응답
-export interface RoomDetailResponse {
+export interface RoomDetailResponse {  
   roomId: number;
   roomName: string;
   roomQnum: number;
