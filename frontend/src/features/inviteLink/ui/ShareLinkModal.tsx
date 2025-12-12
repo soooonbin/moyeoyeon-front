@@ -1,7 +1,6 @@
 // src/features/inviteLink/ui/ShareLinkModal.tsx
 import React from "react";
-import BaseModal from "@/shares/ui/modal/BaseModal";
-import ActionButton from "@/shares/ui/button/ActionButton";
+import { BaseModal, ActionButton } from "@/shares/ui";
 
 interface ShareLinkModalProps {
     open: boolean;
